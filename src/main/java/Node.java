@@ -12,10 +12,13 @@ abstract class Node {
 
     void listMsg() {
         for (LogEntry logEntry : log) {
-            System.out.println("main.java.Node with id: " +  this.id + " " + logEntry);
+            System.out.println("Node with id: " +  this.id + " " + logEntry);
         }
     }
 
-
+    List<LogEntry> getLog() {
+        System.out.println(log);
+        return new ArrayList<>(log);
+    }
 }
 

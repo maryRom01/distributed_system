@@ -1,12 +1,10 @@
-import java.time.Instant;
-
 public class LogEntry {
     private final int index;
-    private final Instant timestamp;
+    private final String timestamp;
     private final String message;
     private final Boolean status;
 
-    public LogEntry(int index, Instant timestamp, String message, Boolean status) {
+    public LogEntry(int index, String timestamp, String message, Boolean status) {
         this.index = index;
         this.timestamp = timestamp;
         this.message = message;
@@ -17,7 +15,7 @@ public class LogEntry {
         return index;
     }
 
-    public Instant getTimestamp() {
+    public String getTimestamp() {
         return timestamp;
     }
 
@@ -31,7 +29,7 @@ public class LogEntry {
 
     @Override
     public String toString() {
-        return "main.java.LogEntry{index=" + index + ", timestamp=" + timestamp + ", message='" + message + "', status=" + status + "}";
+        return "LogEntry{index=" + index + ", timestamp=" + timestamp + ", message='" + message + "', status=" + status + "}";
     }
 }
 
