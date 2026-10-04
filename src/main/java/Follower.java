@@ -1,6 +1,9 @@
 public class Follower extends Node {
-    Follower(String id) {
+    private final Transport transport;
+
+    Follower(String id, Transport transport) {
         super(id);
+        this.transport = transport;
     }
 
     int replicateMsg(LogEntry entry) {

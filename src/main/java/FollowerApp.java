@@ -12,7 +12,7 @@ import java.util.List;
 public class FollowerApp {
     public static void main(String[] args) throws IOException {
         int port = args.length > 0 ? Integer.parseInt(args[0]) : 8001;
-        Follower folLower = new Follower("follower-" + port);
+        Follower folLower = new Follower("follower-" + port, new HttpTransport());
 
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         Gson gson = new Gson();

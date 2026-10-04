@@ -10,7 +10,7 @@ import java.util.List;
 
 public class MasterApp {
     public static void main(String[] args) throws IOException {
-        Master master = new Master("master-1");
+        Master master = new Master("master-1", new HttpTransport());
         // for Docker
 //        master.addFollower("http://follower1:8001");
 //        master.addFollower("http://follower2:8002");
