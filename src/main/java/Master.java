@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public class Master extends Node {
     List<String> followerUrls;
@@ -20,6 +21,7 @@ public class Master extends Node {
 
     void addFollower(String url) {
         followerUrls.add(url);
+        logger.info("Registered follower: " + url);
     }
 
     void appendMsg(String message) {
@@ -27,10 +29,16 @@ public class Master extends Node {
         String timeStamp = Instant.now().toString();
         LogEntry logEntry = new LogEntry(index, timeStamp, message, null);
         log.add(logEntry);
+        logger.info("Appended entry " + index + ": " + message);
 
+        List<CompletableFuture<Integer>> futures = new ArrayList<>();
         for (String followerUrl : followerUrls) {
-            replicateToFollower(followerUrl, logEntry);
+            CompletableFuture<Integer> future = CompletableFuture.supplyAsync(() -> replicateToFollower(followerUrl, logEntry));
+            futures.add(future);
         }
+
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        logger.info("All followers acknowledged entry " + index);
     }
 
     private int replicateToFollower(String followerUrl, LogEntry entry) {
@@ -45,11 +53,11 @@ public class Master extends Node {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            System.out.println("Follower " + followerUrl + " responded: " + response.body());
+            logger.info("Follower " + followerUrl + " responded: " + response.body());
             return Integer.parseInt(response.body());
 
         } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
+            logger.severe("Failed to replicate to " + followerUrl + ": " + e.getMessage());
             throw new RuntimeException("Failed to replicate to " + followerUrl, e);
         }
     }

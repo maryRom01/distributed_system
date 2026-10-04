@@ -1,7 +1,10 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 abstract class Node {
+    protected final Logger logger = Logger.getLogger(getClass().getName());
+
     List<LogEntry> log;
     String id;
 
@@ -10,14 +13,7 @@ abstract class Node {
         this.log = new ArrayList<>();
     }
 
-    void listMsg() {
-        for (LogEntry logEntry : log) {
-            System.out.println("Node with id: " +  this.id + " " + logEntry);
-        }
-    }
-
     List<LogEntry> getLog() {
-        System.out.println(log);
         return new ArrayList<>(log);
     }
 }

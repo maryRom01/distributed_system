@@ -9,7 +9,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-public class FollowerApp {
+public class FollowerApp2 {
     public static void main(String[] args) throws IOException {
         int port = args.length > 0 ? Integer.parseInt(args[0]) : 8001;
         Follower folLower = new Follower("follower-" + port);
