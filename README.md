@@ -140,3 +140,26 @@ this stops everything Docker-related:
 ```aiignore
 docker stop $(docker ps -aq) && docker rm $(docker ps -aq)
 ```
+
+list of commands
+```aiignore
+mvn clean package
+docker build -t master-app .
+docker build -f Dockerfile.follower -t follower-app .
+docker network create replicated-log-net
+docker run -d --name follower1 --network replicated-log-net -p 8001:8001 follower-app 8001
+docker run -d --name follower2 --network replicated-log-net -p 8002:8002 follower-app 8002
+docker run -d --name master --network replicated-log-net -p 8000:8000 master-app
+docker ps
+
+curl -X POST http://localhost:8000/append -d "docker verification after refactor"
+curl http://localhost:8000/list
+curl http://localhost:8001/list
+curl http://localhost:8002/list
+
+docker logs master
+docker logs follower1
+docker logs follower2
+
+docker stop $(docker ps -aq) && docker rm $(docker ps -aq)
+```

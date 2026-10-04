@@ -12,12 +12,12 @@ public class MasterApp {
     public static void main(String[] args) throws IOException {
         Master master = new Master("master-1", new HttpTransport());
         // for Docker
-//        master.addFollower("http://follower1:8001");
-//        master.addFollower("http://follower2:8002");
+        master.addFollower("http://follower1:8001");
+        master.addFollower("http://follower2:8002");
 
         // for local run
-        master.addFollower("http://localhost:8001");
-        master.addFollower("http://localhost:8002");
+//        master.addFollower("http://localhost:8001");
+//        master.addFollower("http://localhost:8002");
 
         HttpServer server = HttpServer.create(new InetSocketAddress(8000), 0);
         Gson gson = new Gson();
