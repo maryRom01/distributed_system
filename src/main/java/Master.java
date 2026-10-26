@@ -2,6 +2,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 
 public class Master extends Node {
     List<String> followerUrls;
@@ -17,19 +18,36 @@ public class Master extends Node {
         followerUrls.add(url);
     }
 
-    void appendMsg(String message, int defaultWC) {
-        int index = log.size();
-        String timeStamp = Instant.now().toString();
-        LogEntry logEntry = new LogEntry(index, timeStamp, message, null);
-        log.add(logEntry);
+    int allWriteConcern() {
+        return followerUrls.size() + 1;
+    }
 
-        List<CompletableFuture<Integer>> futures = new ArrayList<>();
+    void appendMsg(String message, int writeConcern) {
+        LogEntry logEntry = createEntry(message);
+        int index = logEntry.getIndex();
+
+        CountDownLatch latch = new CountDownLatch(writeConcern - 1);
+
         for (String followerUrl : followerUrls) {
-            CompletableFuture<Integer> future = CompletableFuture.supplyAsync(() -> transport.send(followerUrl, logEntry));
-            futures.add(future);
+            CompletableFuture.runAsync(() -> {
+                transport.send(followerUrl, logEntry);
+                latch.countDown();
+            });
         }
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-        logger.info("All followers acknowledged entry " + index);
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        logger.info("Write concern w=" + writeConcern + " satisfied for entry " + index);
+    }
+
+    private synchronized LogEntry createEntry(String message) {
+        int index = log.size();
+        LogEntry entry = new LogEntry(index, Instant.now().toString(), message, null);
+        log.add(entry);
+        return entry;
     }
 }

@@ -31,7 +31,7 @@ public class ReplicationTest {
     public void testDelayOnFollowerA() {
         transport.setDelay("url-a", 5000);
         startTime = System.currentTimeMillis();
-        master.appendMsg("msg1", master.followerUrls.size() + 1);
+        master.appendMsg("msg1", master.allWriteConcern());
         endTime = System.currentTimeMillis();
         delay = endTime - startTime;
 
@@ -42,7 +42,7 @@ public class ReplicationTest {
     public void testDelayOnFollowerB() {
         transport.setDelay("url-b", 6000);
         startTime = System.currentTimeMillis();
-        master.appendMsg("msg2", master.followerUrls.size() + 1);
+        master.appendMsg("msg2", master.allWriteConcern());
         endTime = System.currentTimeMillis();
         delay = endTime - startTime;
 
@@ -52,7 +52,7 @@ public class ReplicationTest {
     @Test
     public void testNoDelayReplication() {
         startTime = System.currentTimeMillis();
-        master.appendMsg("msg3", master.followerUrls.size() + 1);
+        master.appendMsg("msg3", master.allWriteConcern());
         endTime = System.currentTimeMillis();
         delay = endTime - startTime;
 
@@ -61,9 +61,9 @@ public class ReplicationTest {
 
     @Test
     public void testFullReplicationAcrossAllNodes() {
-        master.appendMsg("m4", master.followerUrls.size() + 1);
-        master.appendMsg("m5", master.followerUrls.size() + 1);
-        master.appendMsg("m6", master.followerUrls.size() + 1);
+        master.appendMsg("m4", master.allWriteConcern());
+        master.appendMsg("m5", master.allWriteConcern());
+        master.appendMsg("m6", master.allWriteConcern());
 
         List<LogEntry> masterLog = master.getLog();
         List<LogEntry> followerALog = followerA.getLog();
@@ -87,7 +87,7 @@ public class ReplicationTest {
         transport.setDelay("url-b", 3000);
 
         startTime = System.currentTimeMillis();
-        master.appendMsg("msgParallel", master.followerUrls.size() + 1);
+        master.appendMsg("msgParallel", master.allWriteConcern());
         endTime = System.currentTimeMillis();
         delay = endTime - startTime;
 

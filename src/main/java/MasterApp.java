@@ -67,18 +67,26 @@ public class MasterApp {
                     os.write(responseBytes);
                     os.close();
                 } catch (NumberFormatException e) {
-                    String error = "Invalid w: not a number " + (master.followerUrls.size() + 1);
+                    String error = "Invalid w: not a number";
                     byte[] errorBytes = error.getBytes(StandardCharsets.UTF_8);
                     exchange.sendResponseHeaders(400, errorBytes.length);
                     OutputStream os = exchange.getResponseBody();
                     os.write(errorBytes);
                     os.close();
                     return;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    String error = "Error: " + e.getMessage();
+                    byte[] errorBytes = error.getBytes(StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(500, errorBytes.length);
+                    OutputStream os = exchange.getResponseBody();
+                    os.write(errorBytes);
+                    os.close();
                 }
             }
         });
 
-        server.setExecutor(null);
+        server.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
         server.start();
         System.out.println("Master started on port 8000");
     }
