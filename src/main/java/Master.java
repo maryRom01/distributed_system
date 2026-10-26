@@ -17,7 +17,7 @@ public class Master extends Node {
         followerUrls.add(url);
     }
 
-    void appendMsg(String message) {
+    void appendMsg(String message, int defaultWC) {
         int index = log.size();
         String timeStamp = Instant.now().toString();
         LogEntry logEntry = new LogEntry(index, timeStamp, message, null);
