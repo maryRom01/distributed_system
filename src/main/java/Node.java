@@ -1,5 +1,5 @@
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Logger;
 
 abstract class Node {
@@ -10,11 +10,11 @@ abstract class Node {
 
     Node(String id) {
         this.id = id;
-        this.log = new ArrayList<>();
+        this.log = new CopyOnWriteArrayList<>();
     }
 
     List<LogEntry> getLog() {
-        return new ArrayList<>(log);
+        return new CopyOnWriteArrayList<>(log);
     }
 }
 
