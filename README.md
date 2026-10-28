@@ -146,6 +146,7 @@ list of commands
 mvn clean package
 docker build -t master-app .
 docker build -f Dockerfile.follower -t follower-app .
+docker stop $(docker ps -aq) && docker rm $(docker ps -aq)
 docker network create replicated-log-net
 docker run -d --name follower1 --network replicated-log-net -p 8001:8001 follower-app 8001
 docker run -d --name follower2 --network replicated-log-net -p 8002:8002 follower-app 8002
@@ -163,3 +164,147 @@ docker logs follower2
 
 docker stop $(docker ps -aq) && docker rm $(docker ps -aq)
 ```
+
+################################################
+
+Replicated Log (Iteration 2)
+
+A primitive replicated log in Java: one Master and two Secondaries (followers) communicating over HTTP. Master supports a tunable write concern (w) and guarantees total ordering of messages on all nodes.
+
+Architecture
+
+Master
+POST /append?w=N - appends the message (request body) to the in-memory log and replicates it to all Secondaries.
+GET /list - returns all messages as JSON.
+
+Secondary (Follower)
+GET /list - returns all replicated messages as JSON.
+POST /replicate - internal endpoint used only by Master.
+
+Transport - interface between Master and Secondaries.
+HttpTransport - real HTTP (used in production / Docker).
+MockedTransport - in-memory fake used by the test harness (delay, message reordering).
+
+Write concern (w)
+
+w is passed as a query parameter and says how many nodes must have the message before Master responds to the client:
+
+w	Master responds after
+1	Master only
+2	Master + 1 Secondary
+3	Master + 2 Secondaries
+If w is omitted, Master waits for all nodes (w = number of secondaries + 1).
+Invalid w (outside 1..secondaries+1, or not a number) returns 400 Bad Request.
+Master always sends the message to all Secondaries in parallel; w only controls how many ACKs it waits for. The rest of the replication continues in the background.
+Master handles requests concurrently, so a slow w=3 request does not block a w=1 request.
+
+Example:
+
+bash
+curl -i -X POST "http://localhost:8000/append?w=2" -d "hello"
+Total ordering
+Master assigns a unique, sequential index to every message (index assignment is synchronized, so concurrent requests never get the same index).
+A Secondary applies messages strictly in index order:
+index == next expected -> appended to the log, then any buffered messages that now fit are appended too;
+index > next expected (arrived early) -> kept in a buffer until the missing messages arrive;
+index < next expected (duplicate) -> ignored.
+So even if messages arrive out of order, every Secondary ends up with the same order as Master.
+
+Prerequisites
+
+Java - the project targets Java 11 bytecode (see pom.xml); developed with JDK 26. Any JDK 11+ works.
+Maven - IntelliJ's bundled Maven, or a standalone mvn on PATH.
+Docker Desktop - only needed to run the system in containers.
+
+Build
+
+Produces target/master-app.jar and target/follower-app.jar.
+
+IntelliJ: Maven tool window -> Lifecycle -> clean, then package. Command line:
+
+bash
+mvn clean package
+
+Run tests
+
+The test harness (TestNG + MockedTransport) runs entirely in one process. Docker is not needed.
+
+bash
+mvn test
+
+(or run ReplicationTest from IntelliJ). Some tests use artificial delays of several seconds, so the suite takes a while.
+
+What is covered (src/test/java/ReplicationTest.java):
+
+Test	Verifies
+testDelayOnFollowerA / testDelayOnFollowerB	Master blocks until the delayed Secondary ACKs (w = all)
+testNoDelayReplication	No delay -> near-instant replication
+testFullReplicationAcrossAllNodes	Master and both Secondaries have the same messages in the same order
+testParallelReplicationTiming	Replication is parallel: delays 1s/3s -> ~3s, not 4s
+testReorderedMessagesAreOrderedOnFollower	reorderMessages delivers messages in reverse order; the Secondary still ends with the correct order
+acceptanceTestForIteration2	Acceptance scenario: S2 delayed; Msg1 w=1, Msg2 w=2 return immediately; Msg3 w=3 waits for S2; Msg4 w=1 is not blocked; S2 is temporarily behind, then catches up (eventual consistency)
+
+MockedTransport API:
+
+registerFollower(destination, follower)
+setDelay(destination, ms) / removeDelay(destination)
+reorderMessages(destination, count) - holds count messages, then delivers them in reverse order; stopReordering(destination)
+
+Delay and reordering are emulated by the test harness, not inside Docker.
+
+Run locally (without Docker)
+
+In MasterApp.java use the localhost follower URLs (comment out the Docker ones):
+
+java
+master.addFollower("http://localhost:8001");
+master.addFollower("http://localhost:8002");
+
+Then, in three terminals (Secondaries first):
+
+bash
+java -jar target/follower-app.jar 8001
+java -jar target/follower-app.jar 8002
+java -jar target/master-app.jar
+Run with Docker
+
+In MasterApp.java use the container-name URLs (comment out the localhost ones), then rebuild the jars:
+
+java
+master.addFollower("http://follower1:8001");
+master.addFollower("http://follower2:8002");
+bash
+# 1. Build images
+docker build -t master-app .
+docker build -f Dockerfile.follower -t follower-app .
+
+# 2. Custom network (containers reach each other by name)
+docker network create replicated-log-net
+
+# 3. Secondaries, then Master
+docker run -d --name follower1 --network replicated-log-net -p 8001:8001 follower-app 8001
+docker run -d --name follower2 --network replicated-log-net -p 8002:8002 follower-app 8002
+docker run -d --name master --network replicated-log-net -p 8000:8000 master-app
+
+Useful commands:
+
+bash
+docker ps
+docker logs master
+docker stop $(docker ps -aq) && docker rm $(docker ps -aq)   # stop and remove everything
+Manual check
+bash
+curl -i -X POST "http://localhost:8000/append?w=1" -d "a"
+curl -i -X POST "http://localhost:8000/append?w=3" -d "b"
+curl -i -X POST "http://localhost:8000/append?w=5" -d "c"     # 400
+curl http://localhost:8000/list
+curl http://localhost:8001/list
+curl http://localhost:8002/list
+Logging
+
+Uses java.util.logging (INFO/SEVERE). In Docker, view it with docker logs <container>.
+
+Known limitations
+Perfect link assumed: if a send to a Secondary throws, the ACK is never counted (the request could hang for that w).
+Follower URLs are hardcoded in MasterApp.java (switch between local and Docker by hand).
+No real network delay in Docker; delay/reordering are emulated by MockedTransport in tests.
