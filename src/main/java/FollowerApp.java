@@ -54,6 +54,14 @@ public class FollowerApp {
             }
         });
 
+        server.createContext("/health", exchange -> {
+            byte[] body = "OK".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(body);
+            }
+        });
+
         server.setExecutor(null);
         server.start();
         System.out.println("Follower started on port " + port);

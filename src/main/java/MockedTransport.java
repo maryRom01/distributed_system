@@ -116,4 +116,11 @@ public class MockedTransport implements Transport {
         }
         return result;
     }
+
+    @Override
+    public void ping(String destination) {
+        if (unavailable.contains(destination)) {
+            throw new RuntimeException("Simulated: " + destination + " is down");
+        }
+    }
 }

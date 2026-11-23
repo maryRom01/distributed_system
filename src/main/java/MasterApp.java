@@ -14,10 +14,12 @@ public class MasterApp {
         // for Docker
         master.addFollower("http://follower1:8001");
         master.addFollower("http://follower2:8002");
+        master.startHeartbeats(1000);
 
 //        // for local run
 //        master.addFollower("http://localhost:8001");
 //        master.addFollower("http://localhost:8002");
+//        master.startHeartbeats(1000);
 
         HttpServer server = HttpServer.create(new InetSocketAddress(8000), 0);
         Gson gson = new Gson();
@@ -83,6 +85,20 @@ public class MasterApp {
                     os.write(errorBytes);
                     os.close();
                 }
+            }
+        });
+
+        server.createContext("/status", exchange -> {
+            try {
+                byte[] body = new Gson().toJson(master.followerStatuses()).getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().add("Content-Type", "application/json");
+                exchange.sendResponseHeaders(200, body.length);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(body);
+                }
+            } catch (Exception e) {
+                exchange.sendResponseHeaders(500, -1);
+                exchange.close();
             }
         });
 

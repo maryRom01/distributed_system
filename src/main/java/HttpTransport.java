@@ -38,4 +38,21 @@ public class HttpTransport implements Transport {
             throw new RuntimeException("Failed to send to " + destination, e);
         }
     }
+
+    @Override
+    public void ping(String destination) {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(destination + "/health"))
+                    .timeout(Duration.ofSeconds(1))
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                throw new RuntimeException("Health check returned " + response.statusCode());
+            }
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException("Health check failed: " + e.getMessage(), e);
+        }
+    }
 }

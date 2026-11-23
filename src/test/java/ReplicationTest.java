@@ -274,4 +274,28 @@ public class ReplicationTest {
         Assert.assertEquals(messages, Arrays.asList("Msg1", "Msg2", "Msg3", "Msg4"));
         System.out.println(messages);
     }
+
+    @Test
+    public void testHeartbeatDetectsDownAndRecovery() throws InterruptedException {
+        MockedTransport t = new MockedTransport();
+        t.registerFollower("s1", new Follower("s1", t));
+        Master m = new Master("m", t);
+        m.addFollower("s1");
+        m.startHeartbeats(100);
+
+        waitForStatus(m, "s1", "HEALTHY");
+        t.setUnavailable("s1", true);
+        waitForStatus(m, "s1", "UNHEALTHY");
+        t.setUnavailable("s1", false);
+        waitForStatus(m, "s1", "HEALTHY");
+    }
+
+    private void waitForStatus(Master m, String url, String expected) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 3000;
+        while (System.currentTimeMillis() < deadline) {
+            if (expected.equals(m.followerStatuses().get(url))) return;
+            Thread.sleep(50);
+        }
+        Assert.fail("Expected " + expected + " but was " + m.followerStatuses().get(url));
+    }
 }

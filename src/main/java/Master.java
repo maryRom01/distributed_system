@@ -8,6 +8,7 @@ import java.util.concurrent.Executors;
 public class Master extends Node {
     List<String> followerUrls;
     private final Transport transport;
+    private final HeartbeatMonitor monitor;
 
     private final ExecutorService sendPool = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r);
@@ -18,6 +19,7 @@ public class Master extends Node {
     Master(String id, Transport transport) {
         super(id);
         this.transport = transport;
+        this.monitor = new HeartbeatMonitor(transport);
         followerUrls = new ArrayList<>();
     }
 
@@ -56,18 +58,17 @@ public class Master extends Node {
         int attempt = 1;
         while (true) {
             try {
+                monitor.awaitAvailable(followerUrl);
                 transport.send(followerUrl, entry);
+                return;
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
                 return;
             } catch (Exception e) {
                 logger.warning("Attempt " + attempt + " to " + followerUrl + " for entry "
                         + entry.getIndex() + " failed: " + e.getMessage()
                         + ". Retrying in " + delayMs + " ms");
-                try {
-                    Thread.sleep(delayMs);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
+                try { Thread.sleep(delayMs); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); return; }
                 delayMs = Math.min(delayMs * 2, 10000);
                 attempt++;
             }
@@ -79,5 +80,15 @@ public class Master extends Node {
         LogEntry entry = new LogEntry(index, Instant.now().toString(), message, null);
         log.add(entry);
         return entry;
+    }
+
+    void startHeartbeats(long intervalMs) {
+        for (String url : followerUrls) {
+            monitor.watch(url, intervalMs);
+        }
+    }
+
+    java.util.Map<String, String> followerStatuses() {
+        return monitor.snapshot();
     }
 }
